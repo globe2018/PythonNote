@@ -14,7 +14,39 @@ f.write('\n'.join(lists))
 
 
 ##############################
+##############################
 
+def get_name(*names): # *names參數中的星號會讓python建立一個名字為names的空多元組
+    for name in names:
+        print("hello,"+name)
+    
+get_name("bonny","steven")
+get_name("jack")
+get_name("rose","john","jane")
+
+
+兩個星號(建立空字典)
+範例如下 :
+
+def users(first_name,last_name,**user_info): # **user_info參數中的星號會讓python建立一個名字為user_info的空字典
+    user={}  
+    user["first"]=first_name # 將first_name新增至user字典
+    user["last"]=last_name # 將last_name新增至user字典
+    for key,value in user_info.items(): # 用迴圈遍訪user_info裡的鍵值對並將其新增至user字典
+        user[key]=value
+    return user
+    
+user1=users("bonny","chang",city="taipei")
+print(user1)
+user2=users("steven","chang",city="taoyuan")
+print(user2)
+
+
+https://ithelp.ithome.com.tw/articles/10203722?sc=iThelpR
+ 
+ 
+##############################
+##############################
 python中對檔案、資料夾（檔案操作函式）的操作需要涉及到os模組和shutil模組。
 
 得到當前工作目錄，即當前Python指令碼工作的目錄路徑: os.getcwd()
