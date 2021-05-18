@@ -1,0 +1,111 @@
+日常运维中我们经常会监测一个ip可不可达，也总有小伙伴问类似的问题，如何去检测一个IP。实际上有很多的检测IP的工具，大大小小的，比如nmap可以，zabbix也可以。如果对于一个完善的运维体系，ping工具应该是一个基础组件了。但实际网络运维中，个人感觉还是有很多小伙伴缺少类似工具，或者是有些ping需求过于个性化，这些开源组件不支持，因为实际的网络运维中奇奇怪怪的需求总是有的，而这些开源工具，都是黑盒子，或者开放的api不够，或者太重了，对于一个新手不友好，这个时候，我们可以基于python，自己动手写个小脚本去做一个ping的监控。
+
+ping监控，或者ping，我觉得基本分两种：
+
+必须从网关设备（网络设备）去ping，那用netmiko、paramiko是一个不错的选择。这个必须先登录到网络设备调用命令。
+从一台服务器（win、Linux）去ping，我个人推荐的是ping3这个Python包。
+今天分享也是讲讲ping3这个比较简单直接的Python包。
+
+什么是Ping3
+Ping3 is a pure python3 version of ICMP ping implementation using raw socket.
+
+它是一个纯粹的基于Python3写的一个ICMP的ping工具包，基于low-level去封装的高阶API，且，无需特定用户权限即可发送ICMP包。
+
+安装
+安装非常简单，pip install ping3即可完成安装。
+
+使用
+cli
+它支持命令行的方式调用，也支持脚本开发的方式调用，我们先简单过一下cli的方式吧。
+
+$ ping3 example.com  # Verbose ping.
+ping 'example.com' ... 215ms
+ping 'example.com' ... 216ms
+ping 'example.com' ... 219ms
+ping 'example.com' ... 217ms
+直接调用ping3 加地址即可，根据官方讲，有些用户ping命令可能权限不足，无法使用。但是通过这种方式可以绕过这个限制。我是没遇到过。
+
+重点是Python API调用，基于这种方式，我们可以实现一些业务逻辑。
+
+我们先来一睹真容。
+
+coding time
+from ping3 import ping, verbose_ping
+
+if __name__ == '__main__':
+    # 简单用法 ping地址即可，超时会返回None 否则返回耗时，单位默认是秒
+    second = ping('www.baidu.com')
+    print('it took {} second'.format(second))
+这个基础用法特别简单，感觉代码已经非常清晰了。
+
+注意
+
+成功的时候，默认返回的是秒为单位的时间
+失败的时候返回的是None
+在if判断里，我用resp_time is not None来进行判断成功与否，可能是我杞人忧天了。非0值在if判断里本身就是代表True的。大家按需。
+
+ping3的ping函数，支持非常多的函数，也就是支持非常多的功能：
+
+参数详解
+dest_addr: 可以是域名和IP 例"192.168.1.1"/"http://example.com"
+
+timeout: 默认超时时间是4 单位秒。同windows，这个参数很重要，我们可以根据实际情况进行调整，实际也是一个阈值。 unit: 返回的耗时时间单位，，"s" for seconds, "ms" for milliseconds. 默认是"s"，为了方便显示或者计算、登记等，我们可以适当调整成ms毫秒。
+
+src_addr: WINDOWS ONLY. 从哪个网络ping出 Ex. "192.168.1.20". (default None) 这个参数是针对windows的，我们的系统可能会有多块网卡（物理或者虚拟的），所以我们可能会有多个IP地址或者接口，windows的话，我们可以设置这个参数，从指定的网卡发出ping。比如一个是业务地址，一个是管理地址，我们就可以指定了。这个值默认是空的，如果有多个，个人感觉应该是从127.0.0.1发出。
+
+interface: LINUX ONLY. 从哪个网络ping出. Ex. "wlan0". (default None)，同windows，linux的话用的是interface这个参数，赋值的时候给的是linux的interface名称，效果同windows，从指定端口，实际是指定的地址发送出去了。默认是None，应该是从环回口发出去的。
+
+ttl:默认为None, 64 onLinux and macOS, and 128 on Windows. (default None)，默认64跳。
+
+size: 默认56, same as in macOS. (default 56) ，可以调整包的大小，貌似上线是MTU-header大小。
+
+seq: ICMP packet sequence, usually increases from 0 in the same process. (default 0)，指定序号，这个用的实在不多。
+
+在实际使用中，dest_addr是必填项目，其他字段，对timeout、size可能调整的比较多。
+
+抛砖引玉
+ping的话，在实际使用中其实比较多，比如检测一个IP是否活的依据之一是ping一下，可以反馈给我们的IPAM系统，也可以在交换机迁移的时候去探测服务是否有中断，依据也是ip是否能ping通。监控中也会用到ping。
+
+最近有位读者，就是想检测一个地址是否alive，能不能ping通，当然是有一些开源工具或者专门的监控工具，但是如果和自己的一些业务逻辑紧密结合，其实自己写个脚本，我觉得更简单方便。
+
+from ping3 import ping, verbose_ping
+import time
+from datetime import datetime
+
+def ping_some_ip(host,src_addr=None):
+    second = ping(host,src_addr=src_addr)
+    return second
+
+if __name__ == '__main__':
+    host = 'www.baidu.com'
+    src_addr = None
+    # src_addr = '192.168.56.1'
+    # 简单用法 ping地址即可，超时会返回None 否则返回耗时，单位默认是秒
+    while True:
+        print('ping @ {}'.format(datetime.now()))
+        result = ping_some_ip(host,src_addr)
+        if result is None:
+            print(result)
+            print('ping 失败！')
+        else:
+            print('ping-{}成功，耗时{}s'.format(host,result))
+        time.sleep(5)
+我们可以简单封装一下ping，也可以直接用ping。在实际使用中，很多包，我个人都会根据自己的业务场景进行封装，本文只是简单举例，实际只用原生的ping3的函数ping也是可以的。
+
+在一个while True 的循环里，循环ping目标地址，根据返回的结果判断是否ping成功，同时我们可以在这里设置一个计数器，达到一定阈值后，发送短信或者微信或者邮件等等，都可以灵活定制。我们定制了ping一次等5秒。
+
+再抛砖引玉，如果是大量ping，我们可以考虑使用多进程、多线程、协程，我用的这些比较少，如果有余力也可以用celery，实现分布式ping，多进程执行大量ping。
+
+ping3还有一个verbose_ping的函数，类似win命令行中的ping，默认四个包，一个接一个的ping，但是返回值为空，只会打印，整个我也不过多介绍了，我还是习惯用有返回值的API，这样我们可以自己去定制。没返回值的打印的主要是给命令行模式使用的。大家了解即可，按需使用。
+
+好了，这次的分享就到这里，预告一下近期的安排。
+
+会再介绍一下ip相关的工具包，新挖一个小坑。
+填不完requests的一些内容，填一个坑，把RESTful系列暂时完结。
+介绍一个difflib的Python内置包。
+开启一个巨坑，nornir系列教程，这个有一些简短的视频介绍，网上也偶尔有人蜻蜓点水，我还是想起一个系列，稍微深入一点的入门级，因为我也是门外汉，带领大家领略nornir的神奇之处。这个也许会用视频的方式，码字不易。到时候再看看。
+欢迎大家继续关注、点赞、分享、喜欢、收藏、订阅，推荐给你身边的网工！
+
+同名知乎专栏和微信公众号：NetDevOps加油站，欢迎你的加入！
+
+发布于 2020-11-08
