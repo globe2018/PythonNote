@@ -1,0 +1,47 @@
+import requests.packages.urllib3
+import requests
+from requests.api import request
+from requests.auth import HTTPBasicAuth
+
+requests.packages.urllib3.disable_warnings()
+
+if __name__ == '__main__':
+    user = input("輸入網頁帳號:");
+    pwd = input("請輸入密碼:");
+    IP = input("請輸入網址(例如 https://192.168.1.205:8443) : ")
+    try:
+        r=requests.get(IP +'/'+'web-services/rest/session', auth=HTTPBasicAuth(user, pwd),verify=False)
+        print(r.status_code)
+        if r.status_code == 200:
+            print ("authentication success")
+            option = input ("請輸入欲進行的動作> 1:查詢 2:新增 3:刪除 4:更新 (填數字即可) : ")
+            url = IP +'/web-services/rest/resource/Scope'
+            if option == '1' :
+                Scope_name = input("輸入Scope名稱: ")
+                r1 = requests.get(url=url+'/'+Scope_name, auth=HTTPBasicAuth(user, pwd),verify=False)
+                print(r1.text)
+            if option == '2' :
+                Scope_name = input("輸入Scope名稱: ")
+                subnet = input("輸入subnet: ")
+                my_data = {'name': Scope_name , 'subnet': subnet}
+                #my_data = {'name': 'Scope_test', 'subnet': '192.168.67.0/24'}
+                r2 = requests.post(url, data = my_data,auth=HTTPBasicAuth(user, pwd),verify=False)
+                if r2.status_code == 201:
+                    print("success")
+                else:
+                    print("fail")
+            if option == '3' :
+                Scope_name = input("請輸入要刪除的Scope名稱 : ")
+                r3 = requests.delete(url+'/'+Scope_name,auth=HTTPBasicAuth(user, pwd),verify=False)
+                if r3.status_code == 200 :
+                    print("success")
+                else :
+                    print("fail")
+            if option == '4' :
+                print("fail")
+        else :
+            print ("authentication fail")
+
+    except:
+        print("fail")
+
